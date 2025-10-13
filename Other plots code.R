@@ -1,69 +1,117 @@
 
-# Fig 1
-library(ggplot2)
-library(dplyr)
-library(grid)
-
-data <- data.frame(
-  ExposedPopulation = c(),
-  Percentage = c())
-data <- data %>%
-  arrange(desc(Percentage)) %>%
-  mutate(
-    LabelText = paste0(ExposedPopulation, " (", Percentage, "%)"),
-    ymax = cumsum(Percentage),
-    ymin = lag(ymax, default = 0),
-    labelPosition = (ymax + ymin) / 2)
-base_colors <- c("#97B48B", "#bed7b3","#D8E8DD","#EBF1E7")
-custom_colors <- colorRampPalette(base_colors)(nrow(data))
-data$FillColor <- custom_colors
-data$LabelText <- factor(data$LabelText, levels = data$LabelText)
-
-ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 6.5, xmin = 1.5, fill = FillColor)) +
-  geom_rect(color = "white") +
-  coord_polar(theta = "y") +
-  xlim(c(0, 7.2)) +  
-  theme_void() +
-  geom_text(
-    data = filter(data, Percentage >= 5),
-    aes(x = 4.2, y = labelPosition, label = paste0(Percentage, "%")),
-    size = 1.4
-  ) +
-  scale_fill_identity(guide = "legend", labels = data$LabelText, breaks = data$FillColor) +
-  guides(fill = guide_legend(
-    override.aes = list(color = NA),
-    ncol = 1
-  )) +
-  ggtitle("Exposed Populations (Gradient, % ≥5 Shown)") +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 10, face = "bold"),
-    legend.title = element_blank(),
-    legend.position = "right",
-    legend.text = element_text(size = 10.5, lineheight = 0.55),
-    legend.key.size = unit(0.25, "cm"),
-    legend.spacing.y = unit(0.2, "cm")
-  )
-
 # Fig 2
 library(ggplot2)
+library(ggforce)
 library(dplyr)
-library(forcats)
-data <- data.frame( Outcome = c(), Count = c( ))
-data <- data %>% mutate(Outcome = fct_reorder(Outcome, Count))
-ggplot(data, aes(x = Count, y = Outcome)) +
-  geom_bar(stat = "identity", fill = ) +
-  geom_text(aes(label = Count), hjust = -0.2, size = 3.5) +
-  theme_minimal(base_size = 13) +
-  labs(x = "Number of Studies", y = "Outcome") +
-  theme(
-    panel.grid.major.y = element_blank(),
-    axis.text.y = element_text(face = "bold", size = 10)  
+library(stringr)
+
+library(readxl)
+
+keggresult <- read_excel("C:/Users/张圣欣/Desktop/棒棒糖图.xlsx")
+
+dat <- keggresult %>%
+  arrange(Confidence) %>%
+  mutate(Description = factor(Description, levels = rev(unique(Description)))) 
+
+dat$log_Confidence <- log10(dat$Confidence)
+
+# Wrap description for better readability
+dat$Wrapped_Description <- str_wrap(dat$Description, width = 40)
+
+
+num_categories <- length(unique(dat$category))
+base_cols <- c( "#B6E3E3", "#F7E3A1", "#CBE6A3",
+                "#BFD7EA", "#FAD4C0", "#D7C7FF")
+
+custom_colors <- c(
+  "#E65100",  
+  "#FF9800",  
+  "#FFB74D", 
+  "#FFCC80",  
+  "#FFF3E0"   
+)
+
+
+dat$Wrapped_Description <- str_wrap(dat$Description, width = 80)  
+
+dat <- dat %>%
+  arrange(desc(Count)) %>%
+  mutate(Wrapped_Description = factor(Wrapped_Description, levels = unique(Wrapped_Description)))  
+
+
+ggplot(dat) +
+  ggforce::geom_link(
+    aes(
+      x = 0, 
+      y = Wrapped_Description,
+      xend = Count,  
+      yend = Wrapped_Description,
+      color = category,  
+      size = 2 
+    ),
+    n = 500,
+    show.legend = c(color = TRUE, size = FALSE)  
   ) +
-  coord_cartesian(xlim = c(0, max(data$Count) + 5))
+  geom_point(
+    aes(
+      x = Count,  
+      y = Wrapped_Description,
+      fill = log_Confidence  
+    ),
+    color = "black", 
+    size = 5,
+    shape = 21,
+    show.legend = TRUE  
+  ) +
+ 
+  geom_text(
+    aes(
+      x = Count + 2,  
+      y = Wrapped_Description,
+      label = Count  
+    ),
+    size = 4,  
+    color = "black",  
+    hjust = 0  
+  ) +
+  scale_color_manual(
+    values = levelcolor,
+    name = "Category"
+  ) +
+  scale_fill_gradientn(
+    colors = custom_colors,  
+    values = scales::rescale(seq(0, 6, length.out = 100)),
+    name = "Log10(Confidence)"
+  ) +
+  guides(
+    alpha = "none",
+    size = "none"
+  ) +
+  theme_bw() +
+  theme(
+    panel.background = element_rect(fill = NA),
+    panel.grid = element_blank(),
+    panel.border = element_blank(),
+    axis.line = element_line(color = "black", linewidth = 0.75),
+    axis.text.y = element_text(
+      color = "black", 
+      size = 12,
+      lineheight = 0.8
+    ),
+    axis.text.x = element_text(color = "black", size = 12),
+    axis.title = element_text(size = 12),
+    legend.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    plot.margin = margin(1, 1, 1, 2, "cm")
+  ) +
+  ylab("") + 
+  xlab("No of studies") +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.04))) +
+  scale_y_discrete(limits = rev)  
 
 
 
-# Fig S2
+# Fig S1
 library(ggplot2)
 library(tidyr)
 library(dplyr)
@@ -119,25 +167,3 @@ ggplot(data_long, aes(x = Count,
   )
 
 
-# Fig S3
-install.packages("janitor")  
-library(janitor)            
-data <- read_excel("C:/patchwork", sheet = "Sheet1")
-data <- clean_names(data)
-data$percentage <- as.numeric(data$percentage)
-data$label <- paste0(data$no, " (", round(data$percentage, 1), "%)")
-ggplot(data, aes(x = reorder(exposure_type, -no), y = no, fill = no)) +
-  geom_bar(stat = "identity", color = "black", width = 0.8) +
-  geom_text(aes(label = label), vjust = -0.4, size = 3) +
-  scale_fill_gradient(low = "#C9FDFF", high = "#D4FEDC") +
-  labs(title = "Distribution of Exposure Types",
-       x = "Exposure Type",
-       y = "Number of Cases (n)") +
-  theme_minimal(base_size = 10) +
-  theme(
-    axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1, size = 9),
-    axis.text.y = element_text(size = 9),
-    plot.title = element_text(hjust = 0.5, size = 12),
-    legend.position = "none"
-  )
-scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
