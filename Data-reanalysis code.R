@@ -127,7 +127,7 @@ run_meta_once <- function(eff, lci, uci, is_ratio){
   vi <- sei^2
   ok <- is.finite(yi) & is.finite(vi) & vi > 0
   yi <- yi[ok]; vi <- vi[ok]; sei <- sei[ok]
-  if (length(yi) < 2) stop("Insufficient valid research items (<2)")
+  if (length(yi) < 2) stop("有效研究条目不足（<2条）")
   
   fit <- fit_random(yi, vi, try_hksj = TRUE)
   
@@ -142,10 +142,13 @@ run_meta_once <- function(eff, lci, uci, is_ratio){
   }
   
   if (is_ratio){
-    TE <- exp(b); lo <- exp(b - 1.96*se); hi <- exp(b + 1.96*se)
+    TE <- exp(b)
   } else {
-    TE <- b;      lo <- b - 1.96*se;       hi <- b + 1.96*se
+    TE <- b
   }
+  lo <- if(is_ratio) exp(fit$ci.lb) else fit$ci.lb
+  hi <- if(is_ratio) exp(fit$ci.ub) else fit$ci.ub
+  # ============================================
   
   egger_p <- tryCatch({
     regtest(yi, sei, model="lm")$pval
@@ -182,7 +185,7 @@ run_meta_once <- function(eff, lci, uci, is_ratio){
     m_cp80_pool <- min_m_for_CP(yi, vi, tau2, theta_future=theta_pool, w_future=wbar, power=0.80, alpha=0.05)
     m_cp80_max  <- min_m_for_CP(yi, vi, tau2, theta_future=theta_max,  w_future=wbar, power=0.80, alpha=0.05)
     if (is.infinite(m_nom_pool) && is.infinite(m_cp80_pool)) {
-      notes <-"Under the default scenario, it is difficult to achieve nominal significance /80% confidence even if a large number of studies are added; please check θ * and weight settings"
+      notes <- "在默认情景下，即使增加大量研究也难以达成名义显著/80%把握度；请检查θ*与权重设定"
     }
   }
   
@@ -244,4 +247,5 @@ output_file <- file.path(folder_path, "name")
 # write Excel（会新建或覆盖同名文件）
 write_xlsx(result_df, output_file)
 cat("Results saved to folder successfully：", output_file, "\n")
+
 
